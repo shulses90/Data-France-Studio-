@@ -1,0 +1,5 @@
+{
+  "name": "DataGouv Explorer",
+  "description": "Explore and visualize datasets from data.gouv.fr",
+  "requestFramePermissions": []
+}
