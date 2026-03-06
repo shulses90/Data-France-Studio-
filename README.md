@@ -66,4 +66,4 @@ npm run dev
 Les contributions sont les bienvenues ! N'hésitez pas à ouvrir une issue ou à soumettre une pull request.
 
 ---
-*Projet conçu avec Google AI Studio.*
+*Projet conçu par Milton Thomas avec Gemini CLI et Google AI Studio.*
