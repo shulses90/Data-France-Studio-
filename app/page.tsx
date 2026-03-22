@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { Search, Database, FileText, BarChart3, Loader2, Download, ExternalLink, ChevronRight, AlertCircle, Sparkles, Bot } from 'lucide-react';
+import { Search, Database, FileText, BarChart3, Loader2, Download, ExternalLink, AlertCircle, Sparkles, Bot } from 'lucide-react';
 import { searchDatasets, getDataset, Dataset, Resource } from '@/lib/api';
 import { askDataGouvAI } from '@/lib/ai';
 import Papa from 'papaparse';
@@ -13,7 +13,6 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer,
   LineChart,
   Line
