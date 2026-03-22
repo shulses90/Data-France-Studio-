@@ -6,6 +6,17 @@ export interface Filter {
   value: string | number;
 }
 
+/**
+ * Processes and aggregates data for visualization.
+ * It applies filters, cleans French number formats, and performs aggregations.
+ *
+ * @param data - The raw input data as an array of objects.
+ * @param filters - Optional filters to apply before processing.
+ * @param aggregate - The aggregation method to use ('sum', 'avg', 'count', or 'none').
+ * @param xAxisKey - The key to group by (required for aggregation).
+ * @param yAxisKey - The key to aggregate (required for aggregation).
+ * @returns The processed and aggregated data.
+ */
 export function processData(
   data: any[],
   filters?: Filter[],
