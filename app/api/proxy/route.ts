@@ -19,7 +19,6 @@ export async function GET(request: Request) {
       headers: {
         'Content-Type': res.headers.get('Content-Type') || 'text/plain',
         'Content-Length': res.headers.get('Content-Length') || '',
-        'Access-Control-Allow-Origin': '*',
       },
     });
   } catch (error: any) {
