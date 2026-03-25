@@ -44,8 +44,8 @@ const renderChartTool: FunctionDeclaration = {
       xAxisKey: { type: Type.STRING, description: 'Le nom EXACT de la colonne pour l\'axe X' },
       yAxisKey: { type: Type.STRING, description: 'Le nom EXACT de la colonne pour l\'axe Y' },
       answer: { type: Type.STRING, description: 'Une réponse textuelle courte et claire' },
-      filters: { 
-        type: Type.ARRAY, 
+      filters: {
+        type: Type.ARRAY,
         description: '(Optionnel) Liste de filtres pour isoler les données pertinentes',
         items: {
           type: Type.OBJECT,
@@ -64,13 +64,44 @@ const renderChartTool: FunctionDeclaration = {
   }
 };
 
+async function fetchCsvSample(url: string): Promise<{ fileSizeMB: number | string; headers: string[]; rows: unknown[] }> {
+  const res = await fetch(url, {
+    signal: AbortSignal.timeout(15_000),
+    headers: { 'User-Agent': 'DataGouv-Explorer/1.0' },
+  });
+  if (!res.ok) throw new Error(`Failed to fetch CSV: ${res.status}`);
+
+  const contentLength = res.headers.get('content-length');
+  const fileSizeMB = contentLength ? (parseInt(contentLength) / (1024 * 1024)).toFixed(2) : 'Inconnu';
+
+  // Read only the first chunk (up to 64KB)
+  const reader = res.body?.getReader();
+  let text = '';
+  if (reader) {
+    const { value } = await reader.read();
+    if (value) {
+      text = new TextDecoder().decode(value);
+    }
+    reader.cancel();
+  } else {
+    text = await res.text();
+  }
+
+  const parsed = Papa.parse(text, { header: true, dynamicTyping: true, skipEmptyLines: true });
+  return {
+    fileSizeMB: fileSizeMB !== 'Inconnu' ? Number(fileSizeMB) : 'Inconnu',
+    headers: parsed.meta?.fields || [],
+    rows: parsed.data.slice(0, 10)
+  };
+}
+
 export async function askDataGouvAI(
   question: string,
   onProgress: (msg: string) => void
 ): Promise<ChartConfig | null> {
-  const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY;
-  if (!apiKey) throw new Error("Clé API Gemini manquante.");
-  
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) throw new Error("Clé API Gemini manquante. Configurez GEMINI_API_KEY dans les variables d'environnement.");
+
   const ai = new GoogleGenAI({ apiKey });
 
   const contents: Content[] = [
@@ -102,7 +133,7 @@ export async function askDataGouvAI(
       const calls = response.functionCalls;
       if (calls && calls.length > 0) {
         const functionResponseParts: Part[] = [];
-        
+
         for (const call of calls) {
           debugLog += `[Call: ${call.name} with ${JSON.stringify(call.args)}] `;
           if (call.name === 'render_chart') {
@@ -122,7 +153,7 @@ export async function askDataGouvAI(
                   title: d.title,
                   csv_resources: d.resources.filter(r => r.format && r.format.trim().toLowerCase() === 'csv').map(r => ({ title: r.title, url: r.url }))
                 }));
-              
+
               debugLog += `-> Found ${simplified.length} datasets. `;
               functionResponseParts.push({
                 functionResponse: { id: (call as any).id, name: call.name, response: { result: simplified } }
@@ -136,32 +167,8 @@ export async function askDataGouvAI(
             onProgress(`Analyse du fichier CSV...`);
             try {
               const url = call.args?.url as string;
-              const res = await fetch(`/api/proxy?url=${encodeURIComponent(url)}`);
-              if (!res.ok) throw new Error('Failed to fetch CSV');
-              
-              const contentLength = res.headers.get('content-length');
-              const fileSizeMB = contentLength ? (parseInt(contentLength) / (1024 * 1024)).toFixed(2) : 'Inconnu';
-              
-              // Read only the first chunk (up to 64KB) to avoid downloading huge files
-              const reader = res.body?.getReader();
-              let text = '';
-              if (reader) {
-                const { value, done } = await reader.read();
-                if (value) {
-                  text = new TextDecoder().decode(value);
-                }
-                reader.cancel(); // Stop downloading
-              } else {
-                text = await res.text();
-              }
-              
-              const parsed = Papa.parse(text, { header: true, dynamicTyping: true, skipEmptyLines: true });
-              const sample = {
-                fileSizeMB: fileSizeMB !== 'Inconnu' ? Number(fileSizeMB) : 'Inconnu',
-                headers: parsed.meta?.fields || [],
-                rows: parsed.data.slice(0, 10)
-              };
-              
+              const sample = await fetchCsvSample(url);
+
               debugLog += `-> CSV headers: ${sample.headers.join(', ')}. `;
               functionResponseParts.push({
                 functionResponse: { id: (call as any).id, name: call.name, response: { result: sample } }
@@ -178,7 +185,7 @@ export async function askDataGouvAI(
             });
           }
         }
-        
+
         if (!isDone && functionResponseParts.length > 0) {
           contents.push({
             role: 'user',
@@ -194,7 +201,7 @@ export async function askDataGouvAI(
         isDone = true;
       }
     } catch (error: any) {
-      console.error("Gemini API Error:", error);
+      console.error("[ai] Gemini API Error:", error);
       throw new Error("Erreur de communication avec l'IA: " + error.message);
     }
   }

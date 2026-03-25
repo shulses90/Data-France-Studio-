@@ -1,6 +1,40 @@
 import { NextResponse } from 'next/server';
 
+const ALLOWED_HOSTS = [
+  'www.data.gouv.fr',
+  'static.data.gouv.fr',
+  'object.files.data.gouv.fr',
+  'open.urssaf.fr',
+  'files.data.gouv.fr',
+  'data.education.gouv.fr',
+];
+
+// Simple in-memory rate limiter: max 30 requests per minute per IP
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+const RATE_LIMIT = 30;
+const RATE_WINDOW_MS = 60_000;
+
+function isRateLimited(ip: string): boolean {
+  const now = Date.now();
+  const entry = rateLimitMap.get(ip);
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_WINDOW_MS });
+    return false;
+  }
+  entry.count++;
+  return entry.count > RATE_LIMIT;
+}
+
 export async function GET(request: Request) {
+  // Rate limiting
+  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+  if (isRateLimited(ip)) {
+    return NextResponse.json(
+      { error: 'Too many requests. Please try again later.' },
+      { status: 429, headers: { 'Retry-After': '60' } }
+    );
+  }
+
   const { searchParams } = new URL(request.url);
   const url = searchParams.get('url');
 
@@ -8,21 +42,45 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Missing url parameter' }, { status: 400 });
   }
 
+  // Validate URL to prevent SSRF
+  let parsedUrl: URL;
   try {
-    const res = await fetch(url);
+    parsedUrl = new URL(url);
+  } catch {
+    return NextResponse.json({ error: 'Invalid URL' }, { status: 400 });
+  }
+
+  if (parsedUrl.protocol !== 'https:') {
+    return NextResponse.json({ error: 'Only HTTPS URLs are allowed' }, { status: 400 });
+  }
+
+  if (!ALLOWED_HOSTS.some(host => parsedUrl.hostname === host || parsedUrl.hostname.endsWith('.' + host))) {
+    return NextResponse.json(
+      { error: `Host not allowed: ${parsedUrl.hostname}. Only data.gouv.fr domains are permitted.` },
+      { status: 403 }
+    );
+  }
+
+  try {
+    const res = await fetch(url, {
+      signal: AbortSignal.timeout(30_000), // 30s timeout
+      headers: { 'User-Agent': 'DataGouv-Explorer/1.0' },
+    });
+
     if (!res.ok) {
-      throw new Error(`Failed to fetch: ${res.status} ${res.statusText}`);
+      throw new Error(`Upstream error: ${res.status} ${res.statusText}`);
     }
-    
-    // Return the stream directly to avoid loading the whole file in memory
+
     return new NextResponse(res.body, {
       headers: {
         'Content-Type': res.headers.get('Content-Type') || 'text/plain',
         'Content-Length': res.headers.get('Content-Length') || '',
-        'Access-Control-Allow-Origin': '*',
+        'Cache-Control': 'public, max-age=300', // Cache 5 minutes
+        'X-Content-Type-Options': 'nosniff',
       },
     });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message || 'Failed to fetch resource' }, { status: 500 });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Failed to fetch resource';
+    return NextResponse.json({ error: message }, { status: 502 });
   }
 }
