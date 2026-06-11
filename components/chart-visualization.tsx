@@ -2,6 +2,8 @@
 
 import { useRef } from 'react';
 import { BarChart3, Download, Bot, Database, AlertCircle, Loader2 } from 'lucide-react';
+import { logger } from '@/lib/logger';
+import { toast } from '@/hooks/use-toast';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, LineChart, Line,
@@ -49,8 +51,10 @@ export default function ChartVisualization({
       link.download = 'infographie-datagouv.png';
       link.href = dataUrl;
       link.click();
+      toast.success('Image téléchargée avec succès');
     } catch (err) {
-      console.error('Failed to download image', err);
+      logger.error('Failed to download image', err);
+      toast.error('Échec du téléchargement de l\'image');
     }
   };
 

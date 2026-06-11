@@ -2,6 +2,7 @@
 
 import { Database, Sparkles, ExternalLink } from 'lucide-react';
 import { searchDatasets, Dataset } from '@/lib/api';
+import { logger } from '@/lib/logger';
 
 interface EmptyStateProps {
   onSearch: (term: string, results: Dataset[]) => void;
@@ -17,7 +18,7 @@ export default function EmptyState({ onSearch, setLoading }: EmptyStateProps) {
       const results = await searchDatasets(term);
       onSearch(term, results || []);
     } catch (err) {
-      console.error(err);
+      logger.error('Quick search failed', err);
     } finally {
       setLoading(false);
     }

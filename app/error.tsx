@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { AlertCircle } from 'lucide-react';
+import { logger } from '@/lib/logger';
 
 export default function Error({
   error,
@@ -11,7 +12,7 @@ export default function Error({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error('[ErrorBoundary]', error);
+    logger.error('[ErrorBoundary]', error);
   }, [error]);
 
   return (

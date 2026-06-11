@@ -1,6 +1,7 @@
 import { GoogleGenAI, Type, FunctionDeclaration, Content, Part } from '@google/genai';
 import { searchDatasets } from './api';
 import Papa from 'papaparse';
+import { logger } from './logger';
 
 export interface ChartConfig {
   csvUrl: string;
@@ -201,7 +202,7 @@ export async function askDataGouvAI(
         isDone = true;
       }
     } catch (error: any) {
-      console.error("[ai] Gemini API Error:", error);
+      logger.error("[ai] Gemini API Error:", error);
       throw new Error("Erreur de communication avec l'IA: " + error.message);
     }
   }
