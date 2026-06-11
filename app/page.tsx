@@ -8,6 +8,7 @@ import { loadCsvFromProxy } from '@/lib/csv-loader';
 import ChartVisualization from '@/components/chart-visualization';
 import DatasetSidebar from '@/components/dataset-sidebar';
 import EmptyState from '@/components/empty-state';
+import { logger } from '@/lib/logger';
 
 export default function Home() {
   const [query, setQuery] = useState('');
@@ -99,7 +100,7 @@ export default function Home() {
         setCsvError("L'IA n'a pas pu générer de réponse.");
       }
     } catch (error: any) {
-      console.error(error);
+      logger.error('AI search failed', error);
       setCsvError("Erreur lors de l'analyse IA: " + error.message);
     } finally {
       setAiLoading(false);
@@ -115,7 +116,7 @@ export default function Home() {
       const results = await searchDatasets(query);
       setDatasets(results || []);
     } catch (error) {
-      console.error(error);
+      logger.error('Search failed', error);
     } finally {
       setLoading(false);
     }
@@ -130,7 +131,7 @@ export default function Home() {
       const fullDataset = await getDataset(dataset.id);
       setSelectedDataset(fullDataset);
     } catch (error) {
-      console.error(error);
+      logger.error('Dataset selection failed', error);
     } finally {
       setLoading(false);
     }

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { askDataGouvAI, ChartConfig } from '@/lib/ai';
+import { logger } from '@/lib/logger';
 
 export async function POST(request: Request) {
   try {
@@ -22,7 +23,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ config, progressMessages });
   } catch (error: unknown) {
-    console.error('[chat] Error:', error);
+    logger.error('[chat] Error:', error);
     const message = error instanceof Error ? error.message : 'Internal server error';
     return NextResponse.json({ error: message }, { status: 500 });
   }
