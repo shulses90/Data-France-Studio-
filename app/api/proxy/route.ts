@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
 
 const ALLOWED_HOSTS = [
   'www.data.gouv.fr',
@@ -25,9 +25,9 @@ function isRateLimited(ip: string): boolean {
   return entry.count > RATE_LIMIT;
 }
 
-export async function GET(request: Request) {
-  // Rate limiting
-  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+export async function GET(request: NextRequest) {
+  // Rate limiting - use request.ip which is provided by Next.js and more secure than manually parsing x-forwarded-for
+  const ip = request.ip || '127.0.0.1';
   if (isRateLimited(ip)) {
     return NextResponse.json(
       { error: 'Too many requests. Please try again later.' },
